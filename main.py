@@ -6,15 +6,25 @@ import signal
 import sys
 
 
+REGEX_5 = "\b{0}{1}{2}{3}{4}\b"
+REGEX_6 = "\b{0}{1}{2}{3}{4}{5}\b"
+REGEX_ANYCHR = "[a-zA-Z]"
+BEGIN_WORD = "spear"
+END_WORD = "hello"
+
+
 class Nod:
     """
     self.word: str
     self.path: paths
     self.dep: deep
+    self.dist: distance
+    self.begin: BEIGN/END
     """
 
-    def __init__(self, word, parent=None):
+    def __init__(self, word, parent=None, begin="NONE"):
         self.word = word
+        self.begin = begin # BEGIN/END
         if parent:
             self.path = parent.path + [parent.word]
             self.dep = parent.dep + 1
@@ -33,10 +43,7 @@ class Nod:
         return res
 
 
-REGEX_5 = "\b[a-zA-Z]{5,5}\b"
-REGEX_6 = "\b[a-zA-Z]{6,6}\b"
-BEGIN_WORD = "spear"
-END_WORD = "spare"
+
 BEGIN_NOD = Nod(BEGIN_WORD)
 END_NOD = Nod(END_WORD)
 HAVE_FIND = {}
@@ -44,7 +51,7 @@ HAVE_FIND = {}
 
 def getUrl(word: str) -> str:
     return "https://wordledictionary.com/.netlify/functions/query?find={0}&has=&not=&limit=undefined".format(
-        word
+        word   
     )
 
 
@@ -55,11 +62,20 @@ def getWord(word: str) -> tuple:
         return HAVE_FIND.get(word)
     else:
         logger.warning("havn't, now get from api")
-        resp = requests.get(getUrl(word))
-        respJson = resp.json()
-        resp.close()
-        HAVE_FIND[word] = respJson["results_length"], respJson["results"]
-        return HAVE_FIND.get(word)
+        try:
+            resp = requests.get(getUrl(word))
+            respJson = resp.json()
+            resp.close()
+        except:
+            logger.error("ERROR!")
+            logger.info("now saving... ")
+            save()
+            logger.info("finish saving... now quit the program...")
+        else:
+            logger.info("Finish! correctly")
+            HAVE_FIND[word] = respJson["results_length"], respJson["results"]
+            logger.info("finished save")
+            return HAVE_FIND.get(word)
 
 
 def wordsFromResults(respJson: tuple) -> list:
@@ -108,6 +124,11 @@ def bfs():
         logger.info(
             "BFS finding... dep {0}, path {1}, word {3}:{2}".format(
                 frnt.dep, frnt.path, frnt.word, counts
+            )
+        )
+        logger.info(
+            "BFS Queue Size {0}".format(
+                Q.qsize()
             )
         )
         ways = frnt.getsAll()
